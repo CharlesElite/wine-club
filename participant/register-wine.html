@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Wine - Wine Club</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/participant.css">
+</head>
+<body>
+    <div class="participant-page">
+        <header class="participant-header">
+            <div class="participant-header__event" id="eventTheme">Loading...</div>
+            <h1 class="participant-header__title" id="eventTitle">Wine Club</h1>
+            <span class="participant-header__code" id="joinCode">---</span>
+        </header>
+
+        <div class="registration">
+            <div class="registration__intro">
+                <h2>Register Your Wine</h2>
+                <p>Choose a bag number and enter your wine details (kept secret until reveal!)</p>
+            </div>
+
+            <!-- Bag Number Selector -->
+            <div class="form-group">
+                <label class="form-label">Choose Your Bag Number</label>
+                <div class="bag-selector" id="bagSelector">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Wine Details Form -->
+            <form id="wineForm">
+                <div class="form-group">
+                    <label class="form-label" for="wineName">Wine Name *</label>
+                    <input
+                        type="text"
+                        id="wineName"
+                        class="form-input"
+                        placeholder="e.g., Apothic Red"
+                        maxlength="100"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="winery">Winery</label>
+                    <input
+                        type="text"
+                        id="winery"
+                        class="form-input"
+                        placeholder="e.g., Apothic Wines"
+                        maxlength="100"
+                    >
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="vintage">Vintage</label>
+                        <input
+                            type="text"
+                            id="vintage"
+                            class="form-input"
+                            placeholder="e.g., 2021"
+                            maxlength="10"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="varietal">Varietal</label>
+                        <input
+                            type="text"
+                            id="varietal"
+                            class="form-input"
+                            placeholder="e.g., Red Blend"
+                            maxlength="50"
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="price">Price (optional)</label>
+                    <input
+                        type="number"
+                        id="price"
+                        class="form-input"
+                        placeholder="$"
+                        min="0"
+                        step="0.01"
+                    >
+                </div>
+
+                <button type="submit" class="btn btn--primary btn--block btn--large mt-xl" id="registerBtn">
+                    Register Wine
+                </button>
+
+                <p class="text-center text-muted mt-md" id="statusMessage"></p>
+            </form>
+        </div>
+
+        <!-- Waiting Lobby -->
+        <div class="lobby hidden" id="lobby">
+            <div class="lobby__status">
+                <div class="lobby__count" id="participantCount">0</div>
+                <div class="lobby__label">participants waiting</div>
+            </div>
+
+            <div class="card">
+                <h3 class="card__title">Your Wine</h3>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div class="wine-bag" style="width: 50px; height: 75px;">
+                        <div class="wine-bag__number" id="yourBagNumber" style="font-size: 1.5rem;"></div>
+                    </div>
+                    <div>
+                        <div id="yourWineName" style="font-weight: 600;"></div>
+                        <div id="yourWineDetails" class="text-muted" style="font-size: 0.875rem;"></div>
+                    </div>
+                </div>
+                <button class="btn btn--secondary btn--block mt-lg" id="editWineBtn">Edit Wine</button>
+            </div>
+
+            <div class="lobby__participants" id="participantList">
+                <!-- Populated by JavaScript -->
+            </div>
+
+            <div class="waiting-screen" id="waitingStatus">
+                <div class="waiting-screen__icon">⏳</div>
+                <h3 class="waiting-screen__title">Waiting for host</h3>
+                <p class="waiting-screen__subtitle">The tasting will begin soon...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/event-manager.js"></script>
+    <script src="../js/wine-manager.js"></script>
+    <script src="../js/realtime-listeners.js"></script>
+    <script>
+        // Get event ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('event');
+
+        if (!eventId) {
+            window.location.href = '../index.html';
+        }
+
+        // DOM Elements
+        const eventThemeEl = document.getElementById('eventTheme');
+        const eventTitleEl = document.getElementById('eventTitle');
+        const joinCodeEl = document.getElementById('joinCode');
+        const bagSelector = document.getElementById('bagSelector');
+        const wineForm = document.getElementById('wineForm');
+        const registerBtn = document.getElementById('registerBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const registration = document.querySelector('.registration');
+        const lobby = document.getElementById('lobby');
+        const participantCount = document.getElementById('participantCount');
+        const participantList = document.getElementById('participantList');
+        const editWineBtn = document.getElementById('editWineBtn');
+
+        let currentEvent = null;
+        let selectedBag = null;
+        let takenBags = [];
+        let userWine = null;
+
+        // Initialize
+        async function init() {
+            await WineClubAuth.ensureSignedIn();
+
+            // Set up real-time listeners
+            RealtimeListeners.listenToEvent(eventId, handleEventUpdate);
+            RealtimeListeners.listenToTakenBags(eventId, handleTakenBagsUpdate);
+            RealtimeListeners.listenToParticipants(eventId, handleParticipantsUpdate);
+
+            // Check if user already registered a wine
+            userWine = await WineManager.getUserWine(eventId, WineClubAuth.getUserId());
+            if (userWine) {
+                selectedBag = userWine.bagNumber;
+                showLobby();
+            }
+        }
+
+        function handleEventUpdate(event) {
+            currentEvent = event;
+            eventTitleEl.textContent = event.title;
+            eventThemeEl.textContent = event.theme || 'Blind Tasting';
+            joinCodeEl.textContent = event.joinCode;
+
+            // Check if tasting has started
+            if (event.status === 'tasting' || event.status === 'reveal') {
+                window.location.href = `rate.html?event=${eventId}`;
+            }
+        }
+
+        function handleTakenBagsUpdate(bags) {
+            takenBags = bags;
+            renderBagSelector();
+        }
+
+        function handleParticipantsUpdate(participants) {
+            participantCount.textContent = participants.length;
+
+            participantList.innerHTML = participants.map(p => {
+                const isYou = p.id === WineClubAuth.getUserId();
+                return `
+                    <div class="lobby__participant">
+                        <div class="lobby__avatar">${p.displayName.charAt(0).toUpperCase()}</div>
+                        <span class="lobby__name">${p.displayName}</span>
+                        ${isYou ? '<span class="lobby__you">(You)</span>' : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderBagSelector() {
+            let html = '';
+            for (let i = 1; i <= 8; i++) {
+                const isTaken = takenBags.includes(i) && i !== selectedBag;
+                const isSelected = i === selectedBag;
+
+                html += `
+                    <div class="bag-option ${isSelected ? 'bag-option--selected' : ''} ${isTaken ? 'bag-option--taken' : ''}"
+                         data-bag="${i}"
+                         ${isTaken ? 'title="Already taken"' : ''}>
+                        ${i}
+                    </div>
+                `;
+            }
+            bagSelector.innerHTML = html;
+
+            // Add click handlers
+            document.querySelectorAll('.bag-option:not(.bag-option--taken)').forEach(bag => {
+                bag.addEventListener('click', () => {
+                    selectedBag = parseInt(bag.dataset.bag);
+                    renderBagSelector();
+                });
+            });
+        }
+
+        wineForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!selectedBag) {
+                statusMessage.textContent = 'Please select a bag number';
+                statusMessage.style.color = 'var(--error)';
+                return;
+            }
+
+            const wineData = {
+                bagNumber: selectedBag,
+                name: document.getElementById('wineName').value.trim(),
+                winery: document.getElementById('winery').value.trim(),
+                vintage: document.getElementById('vintage').value.trim(),
+                varietal: document.getElementById('varietal').value.trim(),
+                price: document.getElementById('price').value ? parseFloat(document.getElementById('price').value) : null
+            };
+
+            if (!wineData.name) {
+                statusMessage.textContent = 'Please enter the wine name';
+                statusMessage.style.color = 'var(--error)';
+                return;
+            }
+
+            registerBtn.disabled = true;
+            registerBtn.textContent = 'Registering...';
+            statusMessage.textContent = '';
+
+            try {
+                userWine = await WineManager.registerWine(eventId, wineData);
+                showLobby();
+            } catch (error) {
+                statusMessage.textContent = error.message;
+                statusMessage.style.color = 'var(--error)';
+                registerBtn.disabled = false;
+                registerBtn.textContent = 'Register Wine';
+            }
+        });
+
+        function showLobby() {
+            registration.classList.add('hidden');
+            lobby.classList.remove('hidden');
+
+            // Update wine display
+            document.getElementById('yourBagNumber').textContent = userWine.bagNumber;
+            document.getElementById('yourWineName').textContent = userWine.name;
+            document.getElementById('yourWineDetails').textContent =
+                [userWine.winery, userWine.vintage, userWine.varietal].filter(Boolean).join(' • ');
+        }
+
+        editWineBtn.addEventListener('click', () => {
+            // Go back to edit mode
+            registration.classList.remove('hidden');
+            lobby.classList.add('hidden');
+
+            // Populate form with existing data
+            document.getElementById('wineName').value = userWine.name || '';
+            document.getElementById('winery').value = userWine.winery || '';
+            document.getElementById('vintage').value = userWine.vintage || '';
+            document.getElementById('varietal').value = userWine.varietal || '';
+            document.getElementById('price').value = userWine.price || '';
+
+            registerBtn.textContent = 'Update Wine';
+        });
+
+        // Initialize
+        init();
+    </script>
+</body>
+</html>

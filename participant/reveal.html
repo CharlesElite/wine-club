@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reveal - Wine Club</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/animations.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .reveal-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .reveal-page__title {
+            font-size: 2rem;
+            color: var(--wine-gold);
+            margin-bottom: 1rem;
+        }
+
+        .reveal-page__subtitle {
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 2rem;
+        }
+
+        .wine-reveal-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 100%;
+            margin-bottom: 2rem;
+        }
+
+        .wine-reveal-card__bag {
+            width: 80px;
+            height: 120px;
+            background: linear-gradient(180deg, #8B6914 0%, #6B5310 100%);
+            border-radius: 8px 8px 0 0;
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: white;
+            position: relative;
+        }
+
+        .wine-reveal-card__bag::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 18px;
+            background: #8B6914;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .wine-reveal-card__name {
+            font-size: 1.5rem;
+            font-family: var(--font-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .wine-reveal-card__details {
+            color: var(--wine-gold);
+            margin-bottom: 0.5rem;
+        }
+
+        .wine-reveal-card__brought {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.875rem;
+        }
+
+        .wine-reveal-card__score {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .wine-reveal-card__avg {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--wine-gold);
+        }
+
+        .wine-reveal-card__label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .wine-reveal-card--hidden .wine-reveal-card__name,
+        .wine-reveal-card--hidden .wine-reveal-card__details,
+        .wine-reveal-card--hidden .wine-reveal-card__brought {
+            filter: blur(8px);
+            user-select: none;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            max-width: 1200px;
+            width: 100%;
+            padding: 2rem;
+        }
+
+        .winner-announcement {
+            background: linear-gradient(135deg, var(--wine-gold), #D4A534);
+            color: var(--charcoal);
+            padding: 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            max-width: 500px;
+        }
+
+        .winner-announcement__crown {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .winner-announcement__title {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .back-link {
+            color: var(--wine-gold);
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal-page" id="revealPage">
+        <h1 class="reveal-page__title">The Reveal</h1>
+        <p class="reveal-page__subtitle" id="revealStatus">Loading results...</p>
+
+        <!-- Winner Announcement -->
+        <div class="winner-announcement hidden" id="winnerAnnouncement">
+            <div class="winner-announcement__crown">👑</div>
+            <div class="winner-announcement__title">Winner!</div>
+            <div id="winnerName"></div>
+            <div id="winnerScore"></div>
+        </div>
+
+        <!-- Results Grid -->
+        <div class="results-grid" id="resultsGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+
+        <a href="../index.html" class="back-link">Back to Home</a>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/event-manager.js"></script>
+    <script src="../js/wine-manager.js"></script>
+    <script src="../js/rating-manager.js"></script>
+    <script src="../js/realtime-listeners.js"></script>
+    <script src="../js/scoring.js"></script>
+    <script>
+        // Get event ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('event');
+
+        if (!eventId) {
+            window.location.href = '../index.html';
+        }
+
+        // DOM Elements
+        const revealStatus = document.getElementById('revealStatus');
+        const winnerAnnouncement = document.getElementById('winnerAnnouncement');
+        const winnerName = document.getElementById('winnerName');
+        const winnerScore = document.getElementById('winnerScore');
+        const resultsGrid = document.getElementById('resultsGrid');
+
+        let wines = [];
+        let ratings = [];
+
+        // Initialize
+        async function init() {
+            await WineClubAuth.ensureSignedIn();
+
+            // Set up real-time listeners
+            RealtimeListeners.listenToEvent(eventId, handleEventUpdate);
+            RealtimeListeners.listenToWines(eventId, handleWinesUpdate);
+            RealtimeListeners.listenToRatings(eventId, handleRatingsUpdate);
+        }
+
+        function handleEventUpdate(event) {
+            if (event.status === 'setup') {
+                window.location.href = `register-wine.html?event=${eventId}`;
+            } else if (event.status === 'tasting') {
+                window.location.href = `rate.html?event=${eventId}`;
+            }
+        }
+
+        function handleWinesUpdate(winesList) {
+            wines = winesList;
+            renderResults();
+        }
+
+        function handleRatingsUpdate(ratingsList) {
+            ratings = ratingsList;
+            renderResults();
+        }
+
+        function renderResults() {
+            if (wines.length === 0) {
+                revealStatus.textContent = 'Loading results...';
+                return;
+            }
+
+            revealStatus.textContent = 'Final Results';
+
+            // Calculate scores and sort
+            const wineResults = wines.map(wine => {
+                const wineRatings = ratings.filter(r => r.bagNumber === wine.bagNumber);
+                const avgScore = wineRatings.length > 0
+                    ? wineRatings.reduce((sum, r) => sum + r.score, 0) / wineRatings.length
+                    : 0;
+
+                return {
+                    ...wine,
+                    avgScore,
+                    ratingCount: wineRatings.length
+                };
+            }).sort((a, b) => b.avgScore - a.avgScore);
+
+            // Show winner
+            if (wineResults.length > 0 && wineResults[0].avgScore > 0) {
+                const winner = wineResults[0];
+                winnerName.textContent = `${winner.name} by ${winner.broughtByName}`;
+                winnerScore.textContent = `Average: ${winner.avgScore.toFixed(1)}/10`;
+                winnerAnnouncement.classList.remove('hidden');
+            }
+
+            // Render all wines
+            resultsGrid.innerHTML = wineResults.map((wine, index) => {
+                const isRevealed = wine.revealed;
+                return `
+                    <div class="wine-reveal-card ${!isRevealed ? 'wine-reveal-card--hidden' : ''}">
+                        <div class="wine-reveal-card__bag">${wine.bagNumber}</div>
+                        <div class="wine-reveal-card__name">${isRevealed ? wine.name : '???'}</div>
+                        <div class="wine-reveal-card__details">
+                            ${isRevealed ? [wine.winery, wine.vintage, wine.varietal].filter(Boolean).join(' • ') : '???'}
+                        </div>
+                        <div class="wine-reveal-card__brought">
+                            ${isRevealed ? `Brought by ${wine.broughtByName}` : 'Brought by ???'}
+                        </div>
+                        <div class="wine-reveal-card__score">
+                            <div class="wine-reveal-card__avg">${wine.avgScore.toFixed(1)}</div>
+                            <div class="wine-reveal-card__label">${wine.ratingCount} ratings</div>
+                        </div>
+                        ${index === 0 && wine.avgScore > 0 ? '<div style="color: var(--wine-gold); margin-top: 1rem;">👑 Winner!</div>' : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Initialize
+        init();
+    </script>
+</body>
+</html>

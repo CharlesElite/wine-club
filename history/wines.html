@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wine Database - Wine Club</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .history-header {
+            background: linear-gradient(135deg, var(--wine-burgundy), var(--wine-red));
+            color: white;
+            padding: var(--space-xl);
+            text-align: center;
+        }
+
+        .history-header__nav {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-lg);
+            margin-top: var(--space-lg);
+        }
+
+        .history-header__nav a {
+            color: white;
+            opacity: 0.8;
+            padding-bottom: var(--space-xs);
+            border-bottom: 2px solid transparent;
+        }
+
+        .history-header__nav a:hover,
+        .history-header__nav a.active {
+            opacity: 1;
+            border-bottom-color: var(--wine-gold);
+        }
+
+        .wines-content {
+            padding: var(--space-xl);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: var(--space-md);
+            margin-bottom: var(--space-xl);
+        }
+
+        .search-input {
+            flex: 1;
+            padding: var(--space-md);
+            border: 2px solid var(--gray-light);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--wine-red);
+        }
+
+        .filter-select {
+            padding: var(--space-md);
+            border: 2px solid var(--gray-light);
+            border-radius: var(--radius-md);
+            background: white;
+            min-width: 150px;
+        }
+
+        .wines-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .wine-history-card {
+            background: white;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+        }
+
+        .wine-history-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .wine-history-card__rating {
+            background: linear-gradient(135deg, var(--wine-burgundy), var(--wine-red));
+            color: white;
+            padding: var(--space-lg);
+            text-align: center;
+        }
+
+        .wine-history-card__score {
+            font-size: 3rem;
+            font-weight: bold;
+        }
+
+        .wine-history-card__count {
+            opacity: 0.8;
+            font-size: 0.875rem;
+        }
+
+        .wine-history-card__info {
+            padding: var(--space-lg);
+        }
+
+        .wine-history-card__name {
+            font-size: 1.25rem;
+            color: var(--wine-burgundy);
+            margin-bottom: var(--space-xs);
+            font-family: var(--font-primary);
+        }
+
+        .wine-history-card__winery {
+            color: var(--wine-rose);
+            margin-bottom: var(--space-sm);
+        }
+
+        .wine-history-card__details {
+            font-size: 0.875rem;
+            color: var(--gray-medium);
+            margin-bottom: var(--space-md);
+        }
+
+        .wine-history-card__event {
+            font-size: 0.75rem;
+            color: var(--gray-medium);
+            padding-top: var(--space-md);
+            border-top: 1px solid var(--gray-light);
+        }
+
+        .wine-history-card__brought {
+            font-size: 0.875rem;
+            color: var(--charcoal);
+        }
+
+        .sort-controls {
+            display: flex;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-lg);
+            flex-wrap: wrap;
+        }
+
+        .sort-btn {
+            padding: var(--space-sm) var(--space-md);
+            background: white;
+            border: 1px solid var(--gray-light);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        .sort-btn:hover {
+            border-color: var(--wine-red);
+        }
+
+        .sort-btn.active {
+            background: var(--wine-red);
+            color: white;
+            border-color: var(--wine-red);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: var(--space-2xl);
+            color: var(--gray-medium);
+        }
+
+        .empty-state__icon {
+            font-size: 4rem;
+            margin-bottom: var(--space-lg);
+        }
+
+        .empty-state__title {
+            font-size: 1.5rem;
+            color: var(--charcoal);
+            margin-bottom: var(--space-md);
+        }
+    </style>
+</head>
+<body>
+    <header class="history-header">
+        <a href="../index.html" style="color: white; text-decoration: none; display: inline-block; margin-bottom: var(--space-md);">
+            <span style="font-size: 2rem;">🍷</span>
+        </a>
+        <h1>Wine Database</h1>
+        <p style="opacity: 0.8;">All wines tasted across events</p>
+
+        <nav class="history-header__nav">
+            <a href="index.html">Past Events</a>
+            <a href="wines.html" class="active">All Wines</a>
+        </nav>
+    </header>
+
+    <main class="wines-content">
+        <!-- Search and Filter -->
+        <div class="search-bar">
+            <input
+                type="text"
+                class="search-input"
+                id="searchInput"
+                placeholder="Search wines by name, winery, or varietal..."
+            >
+            <select class="filter-select" id="sortSelect">
+                <option value="rating-desc">Highest Rated</option>
+                <option value="rating-asc">Lowest Rated</option>
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="recent">Most Recent</option>
+            </select>
+        </div>
+
+        <!-- Sort Controls -->
+        <div class="sort-controls">
+            <button class="sort-btn active" data-filter="all">All Wines</button>
+            <button class="sort-btn" data-filter="high">Top Rated (8+)</button>
+            <button class="sort-btn" data-filter="red">Reds</button>
+            <button class="sort-btn" data-filter="white">Whites</button>
+        </div>
+
+        <!-- Wines Grid -->
+        <div class="wines-grid" id="winesGrid">
+            <div class="loading">
+                <div class="loading__spinner"></div>
+                <div class="loading__text">Loading wines...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        const winesGrid = document.getElementById('winesGrid');
+        const searchInput = document.getElementById('searchInput');
+        const sortSelect = document.getElementById('sortSelect');
+        const sortBtns = document.querySelectorAll('.sort-btn');
+
+        let allWines = [];
+        let currentFilter = 'all';
+
+        async function loadWines() {
+            await WineClubAuth.ensureSignedIn();
+
+            try {
+                const snapshot = await db.collection('wineHistory')
+                    .orderBy('averageRating', 'desc')
+                    .limit(100)
+                    .get();
+
+                allWines = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                renderWines();
+            } catch (error) {
+                console.error('Error loading wines:', error);
+                winesGrid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="empty-state__icon">🍷</div>
+                        <h2 class="empty-state__title">No wines yet</h2>
+                        <p>Complete your first tasting event to build your wine database!</p>
+                        <a href="../index.html" class="btn btn--primary mt-lg">Start an Event</a>
+                    </div>
+                `;
+            }
+        }
+
+        function renderWines() {
+            let wines = [...allWines];
+
+            // Apply search filter
+            const search = searchInput.value.toLowerCase();
+            if (search) {
+                wines = wines.filter(wine =>
+                    wine.wineName?.toLowerCase().includes(search) ||
+                    wine.winery?.toLowerCase().includes(search) ||
+                    wine.varietal?.toLowerCase().includes(search)
+                );
+            }
+
+            // Apply category filter
+            if (currentFilter === 'high') {
+                wines = wines.filter(wine => wine.averageRating >= 8);
+            } else if (currentFilter === 'red') {
+                wines = wines.filter(wine => {
+                    const varietal = (wine.varietal || '').toLowerCase();
+                    return varietal.includes('red') ||
+                           varietal.includes('cabernet') ||
+                           varietal.includes('merlot') ||
+                           varietal.includes('pinot noir') ||
+                           varietal.includes('zinfandel') ||
+                           varietal.includes('syrah') ||
+                           varietal.includes('malbec');
+                });
+            } else if (currentFilter === 'white') {
+                wines = wines.filter(wine => {
+                    const varietal = (wine.varietal || '').toLowerCase();
+                    return varietal.includes('white') ||
+                           varietal.includes('chardonnay') ||
+                           varietal.includes('sauvignon') ||
+                           varietal.includes('riesling') ||
+                           varietal.includes('pinot grigio');
+                });
+            }
+
+            // Apply sort
+            const sortValue = sortSelect.value;
+            switch (sortValue) {
+                case 'rating-desc':
+                    wines.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+                    break;
+                case 'rating-asc':
+                    wines.sort((a, b) => (a.averageRating || 0) - (b.averageRating || 0));
+                    break;
+                case 'name-asc':
+                    wines.sort((a, b) => (a.wineName || '').localeCompare(b.wineName || ''));
+                    break;
+                case 'name-desc':
+                    wines.sort((a, b) => (b.wineName || '').localeCompare(a.wineName || ''));
+                    break;
+                case 'recent':
+                    wines.sort((a, b) => {
+                        const dateA = a.archivedAt?.toMillis?.() || 0;
+                        const dateB = b.archivedAt?.toMillis?.() || 0;
+                        return dateB - dateA;
+                    });
+                    break;
+            }
+
+            if (wines.length === 0) {
+                winesGrid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="empty-state__icon">🔍</div>
+                        <h2 class="empty-state__title">No wines found</h2>
+                        <p>Try adjusting your search or filters.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            winesGrid.innerHTML = wines.map(wine => `
+                <div class="wine-history-card">
+                    <div class="wine-history-card__rating">
+                        <div class="wine-history-card__score">${(wine.averageRating || 0).toFixed(1)}</div>
+                        <div class="wine-history-card__count">${wine.totalRatings || 0} ratings</div>
+                    </div>
+                    <div class="wine-history-card__info">
+                        <h3 class="wine-history-card__name">${wine.wineName || 'Unknown Wine'}</h3>
+                        <div class="wine-history-card__winery">${wine.winery || ''}</div>
+                        <div class="wine-history-card__details">
+                            ${[wine.vintage, wine.varietal].filter(Boolean).join(' • ') || 'No details'}
+                        </div>
+                        <div class="wine-history-card__brought">
+                            Brought by ${wine.broughtBy || 'Unknown'}
+                        </div>
+                        <div class="wine-history-card__event">
+                            From: ${wine.eventTitle || 'Unknown Event'}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Event listeners
+        searchInput.addEventListener('input', renderWines);
+        sortSelect.addEventListener('change', renderWines);
+
+        sortBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                sortBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                renderWines();
+            });
+        });
+
+        loadWines();
+    </script>
+</body>
+</html>

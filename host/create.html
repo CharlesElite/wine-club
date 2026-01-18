@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Event - Wine Club</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/host.css">
+</head>
+<body>
+    <div class="page">
+        <header class="page__header">
+            <div class="container">
+                <a href="../index.html" style="color: white; text-decoration: none;">
+                    <span style="font-size: 1.5rem;">🍷</span>
+                    <span style="font-size: 1.25rem; margin-left: 0.5rem;">Wine Club</span>
+                </a>
+            </div>
+        </header>
+
+        <main class="page__content">
+            <div class="container container--narrow">
+                <div class="card card--elevated">
+                    <h1 class="card__title text-center">Create Tasting Event</h1>
+                    <p class="text-muted text-center mb-xl">Set up your blind tasting and invite your guests</p>
+
+                    <form id="createForm" class="create-form">
+                        <div class="form-group">
+                            <label class="form-label" for="eventTitle">Event Title</label>
+                            <input
+                                type="text"
+                                id="eventTitle"
+                                class="form-input"
+                                placeholder="e.g., Summer Wine Night"
+                                maxlength="50"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="eventTheme">Theme / Varietal</label>
+                            <input
+                                type="text"
+                                id="eventTheme"
+                                class="form-input"
+                                placeholder="e.g., Zinfandel Night, Italian Reds"
+                                maxlength="50"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="hostName">Your Name</label>
+                            <input
+                                type="text"
+                                id="hostName"
+                                class="form-input"
+                                placeholder="How should guests see you?"
+                                maxlength="30"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="maxParticipants">Max Participants</label>
+                            <select id="maxParticipants" class="form-select">
+                                <option value="4">4 guests</option>
+                                <option value="6">6 guests</option>
+                                <option value="8" selected>8 guests</option>
+                                <option value="10">10 guests</option>
+                                <option value="12">12 guests</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn--primary btn--block btn--large mt-xl" id="createBtn">
+                            Create Event
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Success Modal -->
+                <div class="card card--elevated mt-xl hidden" id="successCard">
+                    <div class="text-center">
+                        <div style="font-size: 4rem; margin-bottom: 1rem;">🎉</div>
+                        <h2 class="card__title">Event Created!</h2>
+                        <p class="text-muted mb-lg">Share this code with your guests</p>
+
+                        <div class="join-code join-code--large" id="joinCode"></div>
+
+                        <p class="text-muted mt-lg mb-lg">
+                            Guests can join at <strong>wineclub.app</strong> or scan the QR code
+                        </p>
+
+                        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                            <button class="btn btn--secondary" id="copyCodeBtn">
+                                Copy Code
+                            </button>
+                            <a href="#" class="btn btn--primary" id="dashboardLink">
+                                Go to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/event-manager.js"></script>
+    <script>
+        const createForm = document.getElementById('createForm');
+        const createBtn = document.getElementById('createBtn');
+        const successCard = document.getElementById('successCard');
+        const joinCodeDisplay = document.getElementById('joinCode');
+        const dashboardLink = document.getElementById('dashboardLink');
+        const copyCodeBtn = document.getElementById('copyCodeBtn');
+
+        // Load saved name
+        const savedName = localStorage.getItem('wineclub_displayName');
+        if (savedName) {
+            document.getElementById('hostName').value = savedName;
+        }
+
+        createForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const title = document.getElementById('eventTitle').value.trim();
+            const theme = document.getElementById('eventTheme').value.trim();
+            const hostName = document.getElementById('hostName').value.trim();
+            const maxParticipants = parseInt(document.getElementById('maxParticipants').value);
+
+            if (!title || !hostName) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            createBtn.disabled = true;
+            createBtn.textContent = 'Creating...';
+
+            try {
+                const event = await EventManager.createEvent(title, theme, hostName, maxParticipants);
+
+                // Save name
+                localStorage.setItem('wineclub_displayName', hostName);
+                localStorage.setItem('wineclub_currentEvent', event.id);
+
+                // Show success
+                createForm.parentElement.classList.add('hidden');
+                successCard.classList.remove('hidden');
+                joinCodeDisplay.textContent = event.joinCode;
+                dashboardLink.href = `dashboard.html?event=${event.id}`;
+
+            } catch (error) {
+                alert(error.message);
+                createBtn.disabled = false;
+                createBtn.textContent = 'Create Event';
+            }
+        });
+
+        copyCodeBtn.addEventListener('click', () => {
+            const code = joinCodeDisplay.textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                copyCodeBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyCodeBtn.textContent = 'Copy Code';
+                }, 2000);
+            });
+        });
+    </script>
+</body>
+</html>

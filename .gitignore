@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Environment files (if you add any later)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build output (if you add build tools later)
+dist/
+build/
+
+# Netlify
+.netlify/

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Host Dashboard - Wine Club</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/host.css">
+</head>
+<body>
+    <div class="page">
+        <!-- Host Header -->
+        <header class="host-header">
+            <div class="host-header__title">
+                <span style="font-size: 1.25rem; margin-right: 0.5rem;">🍷</span>
+                <span id="eventTitle">Wine Club</span>
+            </div>
+            <div class="host-header__code" id="joinCode">---</div>
+        </header>
+
+        <!-- Dashboard Content -->
+        <div class="dashboard">
+            <div class="dashboard__main">
+                <!-- Status Panel -->
+                <div class="status-panel">
+                    <div class="status-panel__header">
+                        <div>
+                            <span class="status-badge" id="statusBadge">SETUP</span>
+                            <span class="status-panel__phase" id="phaseText">Waiting for guests</span>
+                        </div>
+                    </div>
+
+                    <div class="controls" id="controls">
+                        <!-- Controls change based on phase -->
+                        <button class="btn btn--primary control-btn" id="startTastingBtn" disabled>
+                            Start Tasting
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Wine Grid -->
+                <div class="wine-grid" id="wineGrid">
+                    <!-- Wines populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="dashboard__sidebar">
+                <!-- Participants Panel -->
+                <div class="participants-panel">
+                    <div class="participants-panel__header">
+                        <span>Participants</span>
+                        <span class="participants-panel__count" id="participantCount">0</span>
+                    </div>
+                    <ul class="participants-panel__list" id="participantList">
+                        <!-- Participants populated by JavaScript -->
+                    </ul>
+                </div>
+
+                <!-- Live Ratings Feed -->
+                <div class="ratings-feed">
+                    <div class="ratings-feed__header">Live Ratings</div>
+                    <div class="ratings-feed__list" id="ratingsFeed">
+                        <div class="text-center text-muted" style="padding: 2rem;">
+                            Ratings will appear here during tasting
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/event-manager.js"></script>
+    <script src="../js/wine-manager.js"></script>
+    <script src="../js/rating-manager.js"></script>
+    <script src="../js/realtime-listeners.js"></script>
+    <script src="../js/scoring.js"></script>
+    <script>
+        // Get event ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('event');
+
+        if (!eventId) {
+            window.location.href = '../index.html';
+        }
+
+        // DOM Elements
+        const eventTitleEl = document.getElementById('eventTitle');
+        const joinCodeEl = document.getElementById('joinCode');
+        const statusBadge = document.getElementById('statusBadge');
+        const phaseText = document.getElementById('phaseText');
+        const controls = document.getElementById('controls');
+        const wineGrid = document.getElementById('wineGrid');
+        const participantList = document.getElementById('participantList');
+        const participantCount = document.getElementById('participantCount');
+        const ratingsFeed = document.getElementById('ratingsFeed');
+
+        let currentEvent = null;
+        let wines = [];
+        let participants = [];
+        let ratings = [];
+
+        // Initialize
+        async function init() {
+            await WineClubAuth.ensureSignedIn();
+
+            // Verify host access
+            const isHost = await WineClubAuth.isHostOf(eventId);
+            if (!isHost) {
+                alert('Access denied. You are not the host of this event.');
+                window.location.href = '../index.html';
+                return;
+            }
+
+            // Set up real-time listeners
+            RealtimeListeners.listenToEvent(eventId, handleEventUpdate);
+            RealtimeListeners.listenToParticipants(eventId, handleParticipantsUpdate);
+            RealtimeListeners.listenToWines(eventId, handleWinesUpdate);
+            RealtimeListeners.listenToRatings(eventId, handleRatingsUpdate);
+        }
+
+        function handleEventUpdate(event) {
+            currentEvent = event;
+            eventTitleEl.textContent = event.title;
+            joinCodeEl.textContent = event.joinCode;
+            updateStatusUI(event.status);
+            updateControlsUI(event);
+        }
+
+        function handleParticipantsUpdate(participantsList) {
+            participants = participantsList;
+            participantCount.textContent = participantsList.length;
+
+            participantList.innerHTML = participantsList.map(p => `
+                <li class="participant-item">
+                    <div class="participant-avatar">${p.displayName.charAt(0).toUpperCase()}</div>
+                    <span class="participant-name">${p.displayName}</span>
+                    <span class="participant-status">${p.role === 'host' ? 'Host' : 'Guest'}</span>
+                </li>
+            `).join('');
+        }
+
+        function handleWinesUpdate(winesList) {
+            wines = winesList;
+            renderWineGrid();
+            updateStartButton();
+        }
+
+        function handleRatingsUpdate(ratingsList) {
+            ratings = ratingsList;
+            renderRatingsFeed();
+            updateWineStats();
+        }
+
+        function updateStatusUI(status) {
+            statusBadge.className = 'status-badge';
+            statusBadge.classList.add(`status-badge--${status}`);
+
+            const statusTexts = {
+                setup: 'SETUP',
+                tasting: 'TASTING',
+                reveal: 'REVEAL',
+                complete: 'COMPLETE'
+            };
+            statusBadge.textContent = statusTexts[status] || status.toUpperCase();
+
+            const phaseTexts = {
+                setup: 'Waiting for guests to register wines',
+                tasting: `Tasting Wine #${currentEvent?.currentWineNumber || 1}`,
+                reveal: 'Revealing wines',
+                complete: 'Event complete'
+            };
+            phaseText.textContent = phaseTexts[status] || '';
+        }
+
+        function updateControlsUI(event) {
+            let controlsHTML = '';
+
+            switch (event.status) {
+                case 'setup':
+                    controlsHTML = `
+                        <button class="btn btn--primary control-btn" id="startTastingBtn" ${wines.length === 0 ? 'disabled' : ''}>
+                            Start Tasting
+                        </button>
+                    `;
+                    break;
+
+                case 'tasting':
+                    const currentWine = event.currentWineNumber || 1;
+                    const maxWine = wines.length;
+                    controlsHTML = `
+                        <button class="btn btn--secondary control-btn" id="prevWineBtn" ${currentWine <= 1 ? 'disabled' : ''}>
+                            Previous Wine
+                        </button>
+                        <button class="btn btn--primary control-btn" id="nextWineBtn" ${currentWine >= maxWine ? 'disabled' : ''}>
+                            Next Wine (#${currentWine + 1})
+                        </button>
+                        <button class="btn btn--gold control-btn" id="startRevealBtn">
+                            Start Reveal
+                        </button>
+                    `;
+                    break;
+
+                case 'reveal':
+                    controlsHTML = `
+                        <a href="reveal.html?event=${eventId}" class="btn btn--gold control-btn btn--large">
+                            Open Reveal Screen
+                        </a>
+                    `;
+                    break;
+
+                case 'complete':
+                    controlsHTML = `
+                        <a href="../history/index.html" class="btn btn--secondary control-btn">
+                            View History
+                        </a>
+                        <a href="../index.html" class="btn btn--primary control-btn">
+                            New Event
+                        </a>
+                    `;
+                    break;
+            }
+
+            controls.innerHTML = controlsHTML;
+            attachControlListeners();
+        }
+
+        function attachControlListeners() {
+            const startTastingBtn = document.getElementById('startTastingBtn');
+            const prevWineBtn = document.getElementById('prevWineBtn');
+            const nextWineBtn = document.getElementById('nextWineBtn');
+            const startRevealBtn = document.getElementById('startRevealBtn');
+
+            if (startTastingBtn) {
+                startTastingBtn.addEventListener('click', async () => {
+                    if (confirm('Start the tasting? Guests will no longer be able to register wines.')) {
+                        await EventManager.startTasting(eventId);
+                    }
+                });
+            }
+
+            if (prevWineBtn) {
+                prevWineBtn.addEventListener('click', async () => {
+                    const current = currentEvent.currentWineNumber || 1;
+                    if (current > 1) {
+                        await EventManager.setCurrentWine(eventId, current - 1);
+                    }
+                });
+            }
+
+            if (nextWineBtn) {
+                nextWineBtn.addEventListener('click', async () => {
+                    const current = currentEvent.currentWineNumber || 1;
+                    if (current < wines.length) {
+                        await EventManager.setCurrentWine(eventId, current + 1);
+                    }
+                });
+            }
+
+            if (startRevealBtn) {
+                startRevealBtn.addEventListener('click', async () => {
+                    if (confirm('Start the reveal? This will show all wine identities.')) {
+                        await EventManager.startReveal(eventId);
+                    }
+                });
+            }
+        }
+
+        function updateStartButton() {
+            const startBtn = document.getElementById('startTastingBtn');
+            if (startBtn && currentEvent?.status === 'setup') {
+                startBtn.disabled = wines.length === 0;
+            }
+        }
+
+        function renderWineGrid() {
+            // Create 8 slots
+            let html = '';
+            for (let i = 1; i <= 8; i++) {
+                const wine = wines.find(w => w.bagNumber === i);
+                const isActive = currentEvent?.currentWineNumber === i;
+                const isRevealed = wine?.revealed;
+
+                let statusText = 'Empty';
+                if (wine) {
+                    if (currentEvent?.status === 'setup') {
+                        statusText = `Registered by ${wine.broughtByName}`;
+                    } else if (isRevealed) {
+                        statusText = wine.name;
+                    } else {
+                        statusText = 'Ready for tasting';
+                    }
+                }
+
+                const wineRatings = ratings.filter(r => r.bagNumber === i);
+                const avgRating = wineRatings.length > 0
+                    ? (wineRatings.reduce((sum, r) => sum + r.score, 0) / wineRatings.length).toFixed(1)
+                    : '-';
+
+                html += `
+                    <div class="wine-card ${isActive ? 'wine-card--active' : ''} ${isRevealed ? 'wine-card--revealed' : ''}"
+                         data-bag="${i}">
+                        <div class="wine-card__bag">
+                            <span class="wine-card__number">${i}</span>
+                        </div>
+                        <div class="wine-card__status">${statusText}</div>
+                        ${currentEvent?.status !== 'setup' ? `
+                            <div class="wine-card__rating">
+                                <div class="wine-card__avg">${avgRating}</div>
+                                <div class="wine-card__votes">${wineRatings.length} ratings</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            wineGrid.innerHTML = html;
+
+            // Add click handlers for wine selection during tasting
+            if (currentEvent?.status === 'tasting') {
+                document.querySelectorAll('.wine-card').forEach(card => {
+                    card.addEventListener('click', async () => {
+                        const bagNum = parseInt(card.dataset.bag);
+                        const wine = wines.find(w => w.bagNumber === bagNum);
+                        if (wine) {
+                            await EventManager.setCurrentWine(eventId, bagNum);
+                        }
+                    });
+                });
+            }
+        }
+
+        function updateWineStats() {
+            renderWineGrid();
+        }
+
+        function renderRatingsFeed() {
+            if (ratings.length === 0) {
+                ratingsFeed.innerHTML = `
+                    <div class="text-center text-muted" style="padding: 2rem;">
+                        Ratings will appear here during tasting
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort by timestamp, newest first
+            const sortedRatings = [...ratings].sort((a, b) => {
+                const timeA = a.submittedAt?.toMillis?.() || 0;
+                const timeB = b.submittedAt?.toMillis?.() || 0;
+                return timeB - timeA;
+            });
+
+            ratingsFeed.innerHTML = sortedRatings.slice(0, 20).map(rating => `
+                <div class="rating-item">
+                    <span class="rating-item__user">${rating.userName}</span>
+                    <span class="rating-item__wine">Wine #${rating.bagNumber}</span>
+                    <span class="rating-item__score">${rating.score}</span>
+                </div>
+                ${rating.comment ? `<div class="rating-item__comment">"${rating.comment}"</div>` : ''}
+            `).join('');
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

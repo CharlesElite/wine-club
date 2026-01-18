@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Event - Wine Club</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/participant.css">
+</head>
+<body>
+    <div class="participant-page">
+        <div class="join-screen">
+            <div class="join-screen__logo">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">🍷</div>
+                <h1>Wine Club</h1>
+                <p>Join a blind tasting event</p>
+            </div>
+
+            <form class="join-form" id="joinForm">
+                <div class="form-group">
+                    <label class="form-label" for="joinCode">Event Code</label>
+                    <input
+                        type="text"
+                        id="joinCode"
+                        class="form-input join-form__code-input"
+                        placeholder="ABC-1234"
+                        maxlength="8"
+                        autocomplete="off"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="displayName">Your Name</label>
+                    <input
+                        type="text"
+                        id="displayName"
+                        class="form-input"
+                        placeholder="How should we call you?"
+                        maxlength="30"
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="btn btn--primary btn--block btn--large mt-lg" id="joinBtn">
+                    Join Event
+                </button>
+
+                <p class="text-center text-muted mt-md" id="joinError" style="display: none;"></p>
+            </form>
+
+            <div class="text-center mt-xl">
+                <a href="../index.html" class="text-wine">Back to Home</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/event-manager.js"></script>
+    <script>
+        const joinForm = document.getElementById('joinForm');
+        const joinCodeInput = document.getElementById('joinCode');
+        const displayNameInput = document.getElementById('displayName');
+        const joinError = document.getElementById('joinError');
+        const joinBtn = document.getElementById('joinBtn');
+
+        // Check for code in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const codeFromUrl = urlParams.get('code');
+        if (codeFromUrl) {
+            joinCodeInput.value = codeFromUrl.toUpperCase();
+        }
+
+        // Load saved name
+        const savedName = localStorage.getItem('wineclub_displayName');
+        if (savedName) {
+            displayNameInput.value = savedName;
+        }
+
+        // Format join code as user types
+        joinCodeInput.addEventListener('input', (e) => {
+            let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (value.length > 3) {
+                value = value.slice(0, 3) + '-' + value.slice(3);
+            }
+            e.target.value = value;
+        });
+
+        joinForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const code = joinCodeInput.value.toUpperCase().trim();
+            const name = displayNameInput.value.trim();
+
+            if (!code || !name) {
+                showError('Please enter both code and name');
+                return;
+            }
+
+            joinBtn.disabled = true;
+            joinBtn.textContent = 'Joining...';
+            joinError.style.display = 'none';
+
+            try {
+                await WineClubAuth.signInAnonymously();
+                const eventId = await EventManager.joinEvent(code, name);
+                localStorage.setItem('wineclub_displayName', name);
+                window.location.href = `register-wine.html?event=${eventId}`;
+            } catch (error) {
+                showError(error.message || 'Failed to join event');
+                joinBtn.disabled = false;
+                joinBtn.textContent = 'Join Event';
+            }
+        });
+
+        function showError(message) {
+            joinError.textContent = message;
+            joinError.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

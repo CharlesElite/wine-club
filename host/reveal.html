@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Reveal - Wine Club</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/animations.css">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .reveal-controls {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+            z-index: 100;
+            background: rgba(0,0,0,0.8);
+            padding: 1rem 2rem;
+            border-radius: 50px;
+        }
+
+        .reveal-controls__btn {
+            padding: 1rem 2rem;
+            font-size: 1.25rem;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .reveal-controls__btn--primary {
+            background: var(--wine-gold);
+            color: var(--charcoal);
+        }
+
+        .reveal-controls__btn--secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .reveal-controls__btn:hover {
+            transform: scale(1.05);
+        }
+
+        .reveal-controls__btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 0.5rem 1.5rem;
+            border-radius: 20px;
+            color: white;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        Wine <span id="currentIndex">0</span> of <span id="totalWines">0</span>
+    </div>
+
+    <!-- Reveal Container -->
+    <div class="reveal-container" id="revealContainer">
+        <!-- Content added dynamically -->
+    </div>
+
+    <!-- Confetti Container -->
+    <div class="confetti-container" id="confettiContainer"></div>
+
+    <!-- Controls -->
+    <div class="reveal-controls">
+        <button class="reveal-controls__btn reveal-controls__btn--secondary" id="prevBtn" disabled>
+            Previous
+        </button>
+        <button class="reveal-controls__btn reveal-controls__btn--primary" id="revealBtn">
+            Reveal Wine
+        </button>
+        <button class="reveal-controls__btn reveal-controls__btn--secondary" id="nextBtn">
+            Next
+        </button>
+        <button class="reveal-controls__btn reveal-controls__btn--primary" id="finishBtn" style="display: none;">
+            Finish Event
+        </button>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/event-manager.js"></script>
+    <script src="../js/wine-manager.js"></script>
+    <script src="../js/rating-manager.js"></script>
+    <script src="../js/scoring.js"></script>
+    <script src="../js/reveal-animations.js"></script>
+    <script>
+        // Get event ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('event');
+
+        if (!eventId) {
+            window.location.href = '../index.html';
+        }
+
+        // DOM Elements
+        const revealContainer = document.getElementById('revealContainer');
+        const confettiContainer = document.getElementById('confettiContainer');
+        const currentIndexEl = document.getElementById('currentIndex');
+        const totalWinesEl = document.getElementById('totalWines');
+        const prevBtn = document.getElementById('prevBtn');
+        const revealBtn = document.getElementById('revealBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const finishBtn = document.getElementById('finishBtn');
+
+        let wines = [];
+        let ratings = [];
+        let wineResults = [];
+        let currentWineIndex = 0;
+        let isRevealing = false;
+
+        // Initialize
+        async function init() {
+            await WineClubAuth.ensureSignedIn();
+
+            // Load data
+            wines = await WineManager.getWines(eventId);
+            ratings = await RatingManager.getAllRatings(eventId);
+
+            // Calculate results and sort by bag number
+            wineResults = wines.map(wine => {
+                const wineRatings = ratings.filter(r => r.bagNumber === wine.bagNumber);
+                const avgScore = wineRatings.length > 0
+                    ? wineRatings.reduce((sum, r) => sum + r.score, 0) / wineRatings.length
+                    : 0;
+
+                return {
+                    ...wine,
+                    avgScore,
+                    ratingCount: wineRatings.length,
+                    comments: wineRatings.filter(r => r.comment).map(r => ({
+                        user: r.userName,
+                        comment: r.comment
+                    }))
+                };
+            }).sort((a, b) => a.bagNumber - b.bagNumber);
+
+            totalWinesEl.textContent = wineResults.length;
+            currentIndexEl.textContent = currentWineIndex + 1;
+
+            showWinePreview();
+            updateButtonStates();
+        }
+
+        function showWinePreview() {
+            const wine = wineResults[currentWineIndex];
+            if (!wine) return;
+
+            revealContainer.innerHTML = `
+                <div class="reveal-number">#${wine.bagNumber}</div>
+                <div class="reveal-bag" id="revealBag">
+                    <span class="reveal-bag__number">${wine.bagNumber}</span>
+                </div>
+                <div class="reveal-info" id="revealInfo">
+                    <h2 class="reveal-info__name" id="wineName">${wine.name}</h2>
+                    <div class="reveal-info__winery">${wine.winery || ''}</div>
+                    <div class="reveal-info__details">${[wine.vintage, wine.varietal].filter(Boolean).join(' • ')}</div>
+                </div>
+                <div class="reveal-contributor" id="revealContributor">
+                    Brought by <span class="reveal-contributor__name">${wine.broughtByName}</span>
+                </div>
+                <div class="reveal-ratings" id="revealRatings">
+                    <div class="reveal-ratings__score">
+                        <span class="reveal-ratings__counter" id="scoreCounter">0</span>
+                    </div>
+                    <div class="reveal-ratings__label">${wine.ratingCount} ratings</div>
+                </div>
+                <div class="reveal-comments" id="revealComments">
+                    ${wine.comments.slice(0, 3).map(c => `
+                        <div class="reveal-comment">"${c.comment}" - ${c.user}</div>
+                    `).join('')}
+                </div>
+                ${wine.avgScore === Math.max(...wineResults.map(w => w.avgScore)) && wine.avgScore > 0 ? `
+                    <div class="winner-badge" id="winnerBadge">
+                        <span class="winner-badge__icon">👑</span>
+                        <span class="winner-badge__text">Winner</span>
+                    </div>
+                ` : ''}
+            `;
+
+            // Hide reveal elements initially
+            document.getElementById('revealInfo').style.opacity = '0';
+            document.getElementById('revealContributor').style.opacity = '0';
+            document.getElementById('revealRatings').style.opacity = '0';
+            document.getElementById('revealComments').innerHTML = '';
+
+            const winnerBadge = document.getElementById('winnerBadge');
+            if (winnerBadge) winnerBadge.style.opacity = '0';
+        }
+
+        async function revealCurrentWine() {
+            if (isRevealing) return;
+            isRevealing = true;
+            revealBtn.disabled = true;
+
+            const wine = wineResults[currentWineIndex];
+            const bag = document.getElementById('revealBag');
+            const info = document.getElementById('revealInfo');
+            const contributor = document.getElementById('revealContributor');
+            const ratingsEl = document.getElementById('revealRatings');
+            const commentsEl = document.getElementById('revealComments');
+            const winnerBadge = document.getElementById('winnerBadge');
+
+            // Mark wine as revealed in database
+            await WineManager.revealWine(eventId, wine.id);
+
+            // Step 1: Bag lift animation
+            bag.classList.add('bag-lift');
+
+            // Step 2: Show wine info
+            await delay(1500);
+            info.style.opacity = '1';
+            info.classList.add('info-slide');
+
+            // Step 3: Show contributor
+            await delay(1000);
+            contributor.style.opacity = '1';
+            contributor.classList.add('contributor-reveal');
+
+            // Step 4: Animate score counter
+            await delay(800);
+            ratingsEl.style.opacity = '1';
+            ratingsEl.classList.add('info-slide');
+            animateCounter(document.getElementById('scoreCounter'), wine.avgScore);
+
+            // Step 5: Show comments
+            await delay(1000);
+            const comments = wine.comments.slice(0, 3);
+            for (let i = 0; i < comments.length; i++) {
+                await delay(300);
+                const commentEl = document.createElement('div');
+                commentEl.className = 'reveal-comment';
+                commentEl.textContent = `"${comments[i].comment}" - ${comments[i].user}`;
+                commentsEl.appendChild(commentEl);
+            }
+
+            // Step 6: Show winner badge if applicable
+            if (winnerBadge) {
+                await delay(500);
+                winnerBadge.classList.add('winner-badge--show');
+                triggerConfetti();
+            }
+
+            // Check if this is the highest rated
+            if (wine.avgScore === Math.max(...wineResults.map(w => w.avgScore)) && wine.avgScore > 0) {
+                triggerConfetti();
+            }
+
+            isRevealing = false;
+            revealBtn.textContent = 'Revealed!';
+            updateButtonStates();
+        }
+
+        function animateCounter(element, target) {
+            const duration = 1500;
+            const steps = 60;
+            const stepValue = target / steps;
+            let current = 0;
+            const interval = duration / steps;
+
+            const timer = setInterval(() => {
+                current += stepValue;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                element.textContent = current.toFixed(1);
+            }, interval);
+        }
+
+        function triggerConfetti() {
+            const colors = ['#722F37', '#C9A227', '#4A7C59', '#B76E79', '#F7E7CE'];
+
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                confetti.style.animationDelay = Math.random() * 0.5 + 's';
+                confettiContainer.appendChild(confetti);
+
+                // Remove after animation
+                setTimeout(() => confetti.remove(), 4500);
+            }
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function updateButtonStates() {
+            prevBtn.disabled = currentWineIndex === 0 || isRevealing;
+            nextBtn.disabled = currentWineIndex >= wineResults.length - 1 || isRevealing;
+            revealBtn.disabled = isRevealing;
+
+            currentIndexEl.textContent = currentWineIndex + 1;
+
+            // Show finish button on last wine
+            if (currentWineIndex === wineResults.length - 1 && !isRevealing) {
+                finishBtn.style.display = 'block';
+            }
+        }
+
+        // Event listeners
+        prevBtn.addEventListener('click', () => {
+            if (currentWineIndex > 0) {
+                currentWineIndex--;
+                revealBtn.textContent = 'Reveal Wine';
+                showWinePreview();
+                updateButtonStates();
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (currentWineIndex < wineResults.length - 1) {
+                currentWineIndex++;
+                revealBtn.textContent = 'Reveal Wine';
+                showWinePreview();
+                updateButtonStates();
+            }
+        });
+
+        revealBtn.addEventListener('click', revealCurrentWine);
+
+        finishBtn.addEventListener('click', async () => {
+            if (confirm('Complete the event? This will archive all results to history.')) {
+                await EventManager.completeEvent(eventId);
+                window.location.href = `../history/index.html`;
+            }
+        });
+
+        // Initialize
+        init();
+    </script>
+</body>
+</html>

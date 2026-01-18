@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wine Club - Blind Tasting Experience</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/participant.css">
+    <style>
+        .landing {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, var(--cream) 0%, var(--wine-champagne) 100%);
+        }
+
+        .landing__hero {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-xl);
+            text-align: center;
+        }
+
+        .landing__logo {
+            margin-bottom: var(--space-xl);
+        }
+
+        .landing__icon {
+            font-size: 5rem;
+            margin-bottom: var(--space-md);
+        }
+
+        .landing__title {
+            font-size: 3rem;
+            color: var(--wine-burgundy);
+            margin-bottom: var(--space-sm);
+        }
+
+        .landing__subtitle {
+            color: var(--gray-medium);
+            font-size: 1.125rem;
+            max-width: 400px;
+        }
+
+        .landing__actions {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-lg);
+            width: 100%;
+            max-width: 400px;
+            margin-top: var(--space-2xl);
+        }
+
+        .action-card {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: var(--space-xl);
+            box-shadow: var(--shadow-md);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .action-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .action-card--host {
+            border-color: var(--wine-burgundy);
+        }
+
+        .action-card--host:hover {
+            background: var(--wine-burgundy);
+            color: white;
+        }
+
+        .action-card--host:hover .action-card__title {
+            color: white;
+        }
+
+        .action-card--host:hover .action-card__desc {
+            color: rgba(255,255,255,0.8);
+        }
+
+        .action-card--join {
+            border-color: var(--wine-gold);
+        }
+
+        .action-card--join:hover {
+            background: var(--wine-gold);
+        }
+
+        .action-card__icon {
+            font-size: 2.5rem;
+            margin-bottom: var(--space-md);
+        }
+
+        .action-card__title {
+            font-size: 1.5rem;
+            color: var(--wine-burgundy);
+            margin-bottom: var(--space-sm);
+            font-family: var(--font-primary);
+        }
+
+        .action-card__desc {
+            color: var(--gray-medium);
+            font-size: 0.875rem;
+        }
+
+        /* Join Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-lg);
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal--active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal__content {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: var(--space-xl);
+            width: 100%;
+            max-width: 400px;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal--active .modal__content {
+            transform: translateY(0);
+        }
+
+        .modal__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-lg);
+        }
+
+        .modal__title {
+            font-size: 1.5rem;
+            color: var(--wine-burgundy);
+        }
+
+        .modal__close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray-medium);
+            padding: var(--space-xs);
+        }
+
+        .modal__close:hover {
+            color: var(--charcoal);
+        }
+
+        .join-code-input {
+            font-family: 'Courier New', monospace;
+            font-size: 1.75rem;
+            text-align: center;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            padding: var(--space-lg);
+        }
+
+        .name-input {
+            margin-top: var(--space-md);
+        }
+
+        .landing__footer {
+            padding: var(--space-lg);
+            text-align: center;
+        }
+
+        .landing__history-link {
+            color: var(--wine-red);
+            font-size: 0.875rem;
+        }
+
+        @media (min-width: 768px) {
+            .landing__actions {
+                flex-direction: row;
+                max-width: 700px;
+            }
+
+            .action-card {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="landing">
+        <main class="landing__hero">
+            <div class="landing__logo">
+                <div class="landing__icon">🍷</div>
+                <h1 class="landing__title">Wine Club</h1>
+                <p class="landing__subtitle">
+                    Host blind tastings with friends. Rate wines, reveal the winners, and save your favorites.
+                </p>
+            </div>
+
+            <div class="landing__actions">
+                <a href="host/create.html" class="action-card action-card--host">
+                    <div class="action-card__icon">🎩</div>
+                    <h2 class="action-card__title">Host Event</h2>
+                    <p class="action-card__desc">Create a new tasting event and invite your guests</p>
+                </a>
+
+                <div class="action-card action-card--join" id="joinCard">
+                    <div class="action-card__icon">📱</div>
+                    <h2 class="action-card__title">Join Event</h2>
+                    <p class="action-card__desc">Enter a code to join an active tasting</p>
+                </div>
+            </div>
+        </main>
+
+        <footer class="landing__footer">
+            <a href="history/index.html" class="landing__history-link">View Past Events</a>
+        </footer>
+    </div>
+
+    <!-- Join Modal -->
+    <div class="modal" id="joinModal">
+        <div class="modal__content">
+            <div class="modal__header">
+                <h3 class="modal__title">Join Tasting</h3>
+                <button class="modal__close" id="closeModal">&times;</button>
+            </div>
+            <form id="joinForm">
+                <div class="form-group">
+                    <label class="form-label" for="joinCode">Event Code</label>
+                    <input
+                        type="text"
+                        id="joinCode"
+                        class="form-input join-code-input"
+                        placeholder="ABC-1234"
+                        maxlength="8"
+                        autocomplete="off"
+                        required
+                    >
+                </div>
+                <div class="form-group name-input">
+                    <label class="form-label" for="displayName">Your Name</label>
+                    <input
+                        type="text"
+                        id="displayName"
+                        class="form-input"
+                        placeholder="How should we call you?"
+                        maxlength="30"
+                        required
+                    >
+                </div>
+                <button type="submit" class="btn btn--primary btn--block btn--large mt-lg" id="joinBtn">
+                    Join Event
+                </button>
+                <p class="text-center text-muted mt-md" id="joinError" style="display: none;"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/event-manager.js"></script>
+    <script>
+        // Modal functionality
+        const joinCard = document.getElementById('joinCard');
+        const joinModal = document.getElementById('joinModal');
+        const closeModal = document.getElementById('closeModal');
+        const joinForm = document.getElementById('joinForm');
+        const joinCodeInput = document.getElementById('joinCode');
+        const displayNameInput = document.getElementById('displayName');
+        const joinError = document.getElementById('joinError');
+        const joinBtn = document.getElementById('joinBtn');
+
+        // Check for code in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const codeFromUrl = urlParams.get('code');
+        if (codeFromUrl) {
+            joinCodeInput.value = codeFromUrl.toUpperCase();
+            joinModal.classList.add('modal--active');
+        }
+
+        // Load saved name
+        const savedName = localStorage.getItem('wineclub_displayName');
+        if (savedName) {
+            displayNameInput.value = savedName;
+        }
+
+        joinCard.addEventListener('click', () => {
+            joinModal.classList.add('modal--active');
+            joinCodeInput.focus();
+        });
+
+        closeModal.addEventListener('click', () => {
+            joinModal.classList.remove('modal--active');
+        });
+
+        joinModal.addEventListener('click', (e) => {
+            if (e.target === joinModal) {
+                joinModal.classList.remove('modal--active');
+            }
+        });
+
+        // Format join code as user types
+        joinCodeInput.addEventListener('input', (e) => {
+            let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (value.length > 3) {
+                value = value.slice(0, 3) + '-' + value.slice(3);
+            }
+            e.target.value = value;
+        });
+
+        // Join form submission
+        joinForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const code = joinCodeInput.value.toUpperCase().trim();
+            const name = displayNameInput.value.trim();
+
+            if (!code || !name) {
+                showError('Please enter both code and name');
+                return;
+            }
+
+            joinBtn.disabled = true;
+            joinBtn.textContent = 'Joining...';
+            joinError.style.display = 'none';
+
+            try {
+                // Save name for future use
+                localStorage.setItem('wineclub_displayName', name);
+
+                // Authenticate anonymously
+                await WineClubAuth.signInAnonymously();
+
+                // Try to join the event
+                const eventId = await EventManager.joinEvent(code, name);
+
+                // Redirect to participant page
+                window.location.href = `participant/register-wine.html?event=${eventId}`;
+            } catch (error) {
+                showError(error.message || 'Failed to join event');
+                joinBtn.disabled = false;
+                joinBtn.textContent = 'Join Event';
+            }
+        });
+
+        function showError(message) {
+            joinError.textContent = message;
+            joinError.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

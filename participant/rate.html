@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Wine - Wine Club</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/participant.css">
+</head>
+<body>
+    <div class="participant-page">
+        <header class="participant-header">
+            <div class="participant-header__event" id="eventTheme">Blind Tasting</div>
+            <h1 class="participant-header__title" id="eventTitle">Wine Club</h1>
+            <span class="participant-header__code" id="joinCode">---</span>
+        </header>
+
+        <!-- Waiting Screen (shown between wines) -->
+        <div class="waiting-screen hidden" id="waitingScreen">
+            <div class="waiting-screen__icon">🍷</div>
+            <h3 class="waiting-screen__title">Waiting for next wine...</h3>
+            <p class="waiting-screen__subtitle">The host will announce when to taste</p>
+        </div>
+
+        <!-- Rating Screen -->
+        <div class="rating-screen" id="ratingScreen">
+            <div class="current-wine">
+                <div class="current-wine__bag">
+                    <span class="current-wine__number" id="currentWineNumber">1</span>
+                </div>
+                <div class="current-wine__label">Wine #<span id="wineNumberLabel">1</span></div>
+            </div>
+
+            <!-- Rating Buttons -->
+            <div class="quick-notes">
+                <div class="quick-notes__label">Your Rating</div>
+            </div>
+            <div class="rating-buttons" id="ratingButtons">
+                <button class="rating-btn" data-score="1">1</button>
+                <button class="rating-btn" data-score="2">2</button>
+                <button class="rating-btn" data-score="3">3</button>
+                <button class="rating-btn" data-score="4">4</button>
+                <button class="rating-btn" data-score="5">5</button>
+                <button class="rating-btn" data-score="6">6</button>
+                <button class="rating-btn" data-score="7">7</button>
+                <button class="rating-btn" data-score="8">8</button>
+                <button class="rating-btn" data-score="9">9</button>
+                <button class="rating-btn" data-score="10">10</button>
+            </div>
+
+            <!-- Quick Notes -->
+            <div class="quick-notes">
+                <div class="quick-notes__label">Tasting Notes (optional)</div>
+                <div class="quick-notes__options" id="quickNotes">
+                    <button type="button" class="note-chip" data-note="Fruity">Fruity</button>
+                    <button type="button" class="note-chip" data-note="Oaky">Oaky</button>
+                    <button type="button" class="note-chip" data-note="Smooth">Smooth</button>
+                    <button type="button" class="note-chip" data-note="Tannic">Tannic</button>
+                    <button type="button" class="note-chip" data-note="Sweet">Sweet</button>
+                    <button type="button" class="note-chip" data-note="Dry">Dry</button>
+                    <button type="button" class="note-chip" data-note="Bold">Bold</button>
+                    <button type="button" class="note-chip" data-note="Light">Light</button>
+                    <button type="button" class="note-chip" data-note="Spicy">Spicy</button>
+                    <button type="button" class="note-chip" data-note="Earthy">Earthy</button>
+                </div>
+            </div>
+
+            <!-- Comment -->
+            <div class="comment-section">
+                <label class="quick-notes__label" for="comment">Additional Comment</label>
+                <textarea
+                    id="comment"
+                    class="comment-input"
+                    placeholder="Any other thoughts about this wine..."
+                    maxlength="200"
+                ></textarea>
+            </div>
+
+            <!-- Submit -->
+            <div class="submit-section">
+                <button type="button" class="submit-btn" id="submitBtn" disabled>
+                    Select a Rating
+                </button>
+            </div>
+        </div>
+
+        <!-- Reveal Watch Screen -->
+        <div class="reveal-watch hidden" id="revealScreen">
+            <div class="reveal-watch__wine">The Reveal</div>
+            <p>Watch the host's screen for the dramatic reveal!</p>
+            <div style="margin-top: 2rem;">
+                <a href="reveal.html?event=" id="revealLink" class="btn btn--gold">
+                    Watch Reveal
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/event-manager.js"></script>
+    <script src="../js/rating-manager.js"></script>
+    <script src="../js/realtime-listeners.js"></script>
+    <script>
+        // Get event ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('event');
+
+        if (!eventId) {
+            window.location.href = '../index.html';
+        }
+
+        // DOM Elements
+        const eventThemeEl = document.getElementById('eventTheme');
+        const eventTitleEl = document.getElementById('eventTitle');
+        const joinCodeEl = document.getElementById('joinCode');
+        const waitingScreen = document.getElementById('waitingScreen');
+        const ratingScreen = document.getElementById('ratingScreen');
+        const revealScreen = document.getElementById('revealScreen');
+        const currentWineNumber = document.getElementById('currentWineNumber');
+        const wineNumberLabel = document.getElementById('wineNumberLabel');
+        const ratingButtons = document.getElementById('ratingButtons');
+        const quickNotes = document.getElementById('quickNotes');
+        const commentInput = document.getElementById('comment');
+        const submitBtn = document.getElementById('submitBtn');
+        const revealLink = document.getElementById('revealLink');
+
+        let currentEvent = null;
+        let selectedScore = null;
+        let selectedNotes = [];
+        let currentBagNumber = null;
+        let existingRating = null;
+
+        // Initialize
+        async function init() {
+            await WineClubAuth.ensureSignedIn();
+
+            // Set up real-time listeners
+            RealtimeListeners.listenToEvent(eventId, handleEventUpdate);
+
+            // Set reveal link
+            revealLink.href = `reveal.html?event=${eventId}`;
+        }
+
+        async function handleEventUpdate(event) {
+            currentEvent = event;
+            eventTitleEl.textContent = event.title;
+            eventThemeEl.textContent = event.theme || 'Blind Tasting';
+            joinCodeEl.textContent = event.joinCode;
+
+            // Handle different event states
+            if (event.status === 'setup') {
+                window.location.href = `register-wine.html?event=${eventId}`;
+                return;
+            }
+
+            if (event.status === 'reveal' || event.status === 'complete') {
+                showRevealScreen();
+                return;
+            }
+
+            if (event.status === 'tasting') {
+                if (event.currentWineNumber !== currentBagNumber) {
+                    await loadWineForRating(event.currentWineNumber);
+                }
+            }
+        }
+
+        async function loadWineForRating(bagNumber) {
+            currentBagNumber = bagNumber;
+
+            // Update UI
+            currentWineNumber.textContent = bagNumber;
+            wineNumberLabel.textContent = bagNumber;
+
+            // Reset form
+            selectedScore = null;
+            selectedNotes = [];
+            commentInput.value = '';
+            updateRatingUI();
+
+            // Check if already rated
+            existingRating = await RatingManager.getUserRating(eventId, bagNumber);
+            if (existingRating) {
+                // Pre-fill with existing rating
+                selectedScore = existingRating.score;
+                selectedNotes = existingRating.notes || [];
+                commentInput.value = existingRating.comment || '';
+                updateRatingUI();
+                submitBtn.textContent = 'Update Rating';
+                submitBtn.classList.add('submit-btn--submitted');
+            } else {
+                submitBtn.textContent = 'Select a Rating';
+                submitBtn.classList.remove('submit-btn--submitted');
+            }
+
+            showRatingScreen();
+        }
+
+        function updateRatingUI() {
+            // Update rating buttons
+            document.querySelectorAll('.rating-btn').forEach(btn => {
+                const score = parseInt(btn.dataset.score);
+                btn.classList.toggle('rating-btn--selected', score === selectedScore);
+            });
+
+            // Update note chips
+            document.querySelectorAll('.note-chip').forEach(chip => {
+                const note = chip.dataset.note;
+                chip.classList.toggle('note-chip--selected', selectedNotes.includes(note));
+            });
+
+            // Update submit button
+            if (selectedScore) {
+                submitBtn.disabled = false;
+                if (!existingRating) {
+                    submitBtn.textContent = `Submit Rating: ${selectedScore}/10`;
+                }
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Select a Rating';
+            }
+        }
+
+        // Rating button handlers
+        document.querySelectorAll('.rating-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedScore = parseInt(btn.dataset.score);
+                updateRatingUI();
+            });
+        });
+
+        // Quick notes handlers
+        document.querySelectorAll('.note-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const note = chip.dataset.note;
+                if (selectedNotes.includes(note)) {
+                    selectedNotes = selectedNotes.filter(n => n !== note);
+                } else {
+                    selectedNotes.push(note);
+                }
+                updateRatingUI();
+            });
+        });
+
+        // Submit handler
+        submitBtn.addEventListener('click', async () => {
+            if (!selectedScore || !currentBagNumber) return;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+
+            try {
+                await RatingManager.submitRating(
+                    eventId,
+                    currentBagNumber,
+                    selectedScore,
+                    selectedNotes,
+                    commentInput.value.trim()
+                );
+
+                existingRating = { score: selectedScore, notes: selectedNotes, comment: commentInput.value };
+                submitBtn.textContent = 'Rating Saved!';
+                submitBtn.classList.add('submit-btn--submitted');
+
+                setTimeout(() => {
+                    submitBtn.textContent = 'Update Rating';
+                    submitBtn.disabled = false;
+                }, 1500);
+            } catch (error) {
+                alert(error.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Try Again';
+            }
+        });
+
+        function showWaitingScreen() {
+            waitingScreen.classList.remove('hidden');
+            ratingScreen.classList.add('hidden');
+            revealScreen.classList.add('hidden');
+        }
+
+        function showRatingScreen() {
+            waitingScreen.classList.add('hidden');
+            ratingScreen.classList.remove('hidden');
+            revealScreen.classList.add('hidden');
+        }
+
+        function showRevealScreen() {
+            waitingScreen.classList.add('hidden');
+            ratingScreen.classList.add('hidden');
+            revealScreen.classList.remove('hidden');
+        }
+
+        // Initialize
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,304 @@
+/* Wine Club App - Host Dashboard Styles */
+
+/* Host Header */
+.host-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-md) var(--space-lg);
+    background: var(--wine-burgundy);
+    color: white;
+}
+
+.host-header__title {
+    font-size: 1.25rem;
+}
+
+.host-header__code {
+    font-family: 'Courier New', monospace;
+    font-size: 1.25rem;
+    background: rgba(255,255,255,0.2);
+    padding: var(--space-xs) var(--space-md);
+    border-radius: var(--radius-sm);
+}
+
+/* Dashboard Layout */
+.dashboard {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: var(--space-xl);
+    padding: var(--space-xl);
+    min-height: calc(100vh - 70px);
+}
+
+.dashboard__main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.dashboard__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+/* Event Status Panel */
+.status-panel {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+    box-shadow: var(--shadow-sm);
+}
+
+.status-panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-lg);
+}
+
+.status-panel__phase {
+    font-size: 1.5rem;
+    color: var(--wine-burgundy);
+}
+
+/* Control Buttons */
+.controls {
+    display: flex;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.control-btn {
+    flex: 1;
+    min-width: 150px;
+}
+
+/* Wine Grid */
+.wine-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-lg);
+}
+
+.wine-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    box-shadow: var(--shadow-sm);
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 3px solid transparent;
+}
+
+.wine-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.wine-card--active {
+    border-color: var(--wine-gold);
+    background: var(--wine-champagne);
+}
+
+.wine-card--revealed {
+    background: linear-gradient(135deg, #f8f4f0, white);
+}
+
+.wine-card__bag {
+    width: 60px;
+    height: 90px;
+    background: linear-gradient(180deg, #8B6914 0%, #6B5310 100%);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    margin: 0 auto var(--space-md);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wine-card__bag::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 16px;
+    background: #8B6914;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.wine-card__number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+}
+
+.wine-card__status {
+    font-size: 0.875rem;
+    color: var(--gray-medium);
+    margin-top: var(--space-sm);
+}
+
+.wine-card__rating {
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--gray-light);
+}
+
+.wine-card__avg {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--wine-red);
+}
+
+.wine-card__votes {
+    font-size: 0.75rem;
+    color: var(--gray-medium);
+}
+
+/* Participants Panel */
+.participants-panel {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.participants-panel__header {
+    background: var(--wine-rose);
+    color: white;
+    padding: var(--space-md) var(--space-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.participants-panel__count {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.participants-panel__list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Live Ratings Feed */
+.ratings-feed {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    flex: 1;
+}
+
+.ratings-feed__header {
+    background: var(--wine-gold);
+    color: var(--charcoal);
+    padding: var(--space-md) var(--space-lg);
+    font-weight: 600;
+}
+
+.ratings-feed__list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.rating-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--gray-light);
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.rating-item__user {
+    font-weight: 500;
+    min-width: 100px;
+}
+
+.rating-item__wine {
+    color: var(--gray-medium);
+    font-size: 0.875rem;
+}
+
+.rating-item__score {
+    margin-left: auto;
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--wine-red);
+    background: var(--wine-champagne);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+}
+
+.rating-item__comment {
+    width: 100%;
+    margin-top: var(--space-sm);
+    padding-left: calc(100px + var(--space-md));
+    font-style: italic;
+    color: var(--gray-medium);
+    font-size: 0.875rem;
+}
+
+/* Create Event Form */
+.create-form {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.create-form__preview {
+    text-align: center;
+    padding: var(--space-xl);
+    background: var(--wine-champagne);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-xl);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .dashboard {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard__sidebar {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .participants-panel,
+    .ratings-feed {
+        flex: 1;
+        min-width: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .host-header {
+        flex-direction: column;
+        gap: var(--space-sm);
+        text-align: center;
+    }
+
+    .wine-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .controls {
+        flex-direction: column;
+    }
+
+    .control-btn {
+        min-width: 100%;
+    }
+}
