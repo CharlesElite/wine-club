@@ -120,7 +120,11 @@ const firebaseConfig = {
 
 ### 8. Custom Domain with Porkbun
 
-If you purchased a domain from [Porkbun](https://porkbun.com), follow these steps to connect it to your Netlify site.
+> **Planned Domain:** `charlieswineclub.com` (or similar - TBD)
+>
+> Purchase from [Porkbun](https://porkbun.com) when ready, then follow the steps below.
+
+If you purchased a domain from Porkbun, follow these steps to connect it to your Netlify site. **We recommend the Netlify DNS approach** (see "Alternative" section below) for the simplest setup.
 
 #### Step 1: Add Domain in Netlify
 
@@ -180,9 +184,9 @@ After adding the domain, Netlify will display the required DNS records. You'll t
 3. Once verified, click **Provision certificate**
 4. Netlify will auto-provision a free Let's Encrypt SSL certificate
 
-#### Alternative: Use Netlify DNS (Recommended)
+#### Recommended: Use Netlify DNS (Simplest Setup)
 
-For easier management, you can use Netlify as your DNS provider:
+For the easiest setup with automatic SSL and no manual DNS records, use Netlify as your DNS provider:
 
 1. In Netlify, go to **Domain management**
 2. Click **Options** → **Set up Netlify DNS**
