@@ -118,11 +118,112 @@ const firebaseConfig = {
 2. Drag the entire `wine-club` folder onto the page
 3. Your site will be live in seconds
 
-### 8. Custom Domain (Optional)
+### 8. Custom Domain with Porkbun
 
-1. In Netlify, go to "Domain settings"
-2. Click "Add custom domain"
-3. Follow the DNS configuration instructions
+If you purchased a domain from [Porkbun](https://porkbun.com), follow these steps to connect it to your Netlify site.
+
+#### Step 1: Add Domain in Netlify
+
+1. In Netlify, go to **Site settings** → **Domain management**
+2. Click **Add a domain**
+3. Enter your domain (e.g., `wineclub.app` or `yourdomain.com`)
+4. Click **Verify** → **Add domain**
+5. Netlify will show you need to configure DNS
+
+#### Step 2: Get Netlify DNS Records
+
+After adding the domain, Netlify will display the required DNS records. You'll typically see:
+
+| Type | Name | Value |
+|------|------|-------|
+| A | @ | 75.2.60.5 |
+| CNAME | www | your-site-name.netlify.app |
+
+**Note:** The A record IP may vary - use the one Netlify provides.
+
+#### Step 3: Configure DNS in Porkbun
+
+1. Log in to [Porkbun](https://porkbun.com)
+2. Go to **Domain Management**
+3. Find your domain and click **DNS**
+4. Delete any existing A or CNAME records for @ and www (if present)
+
+**Add the A Record (root domain):**
+1. Click **Add Record**
+2. Type: `A`
+3. Host: `` (leave blank for root, or enter `@`)
+4. Answer: `75.2.60.5` (use Netlify's provided IP)
+5. TTL: `600` (or default)
+6. Click **Add**
+
+**Add the CNAME Record (www subdomain):**
+1. Click **Add Record**
+2. Type: `CNAME`
+3. Host: `www`
+4. Answer: `your-site-name.netlify.app` (your Netlify subdomain)
+5. TTL: `600` (or default)
+6. Click **Add**
+
+#### Step 4: Verify in Netlify
+
+1. Go back to Netlify → **Domain management**
+2. Wait a few minutes for DNS propagation
+3. Netlify will automatically verify and provision SSL
+4. You'll see a green checkmark when complete
+
+**DNS Propagation:** Can take 5 minutes to 48 hours, but usually works within 10-30 minutes.
+
+#### Step 5: Enable HTTPS
+
+1. In Netlify, go to **Domain management** → **HTTPS**
+2. Click **Verify DNS configuration**
+3. Once verified, click **Provision certificate**
+4. Netlify will auto-provision a free Let's Encrypt SSL certificate
+
+#### Alternative: Use Netlify DNS (Recommended)
+
+For easier management, you can use Netlify as your DNS provider:
+
+1. In Netlify, go to **Domain management**
+2. Click **Options** → **Set up Netlify DNS**
+3. Netlify will give you nameservers like:
+   ```
+   dns1.p01.nsone.net
+   dns2.p01.nsone.net
+   dns3.p01.nsone.net
+   dns4.p01.nsone.net
+   ```
+
+4. In Porkbun:
+   - Go to **Domain Management** → your domain
+   - Click **Nameservers**
+   - Select **Custom nameservers**
+   - Enter all 4 Netlify nameservers
+   - Click **Submit**
+
+5. Wait for propagation (up to 24-48 hours)
+
+**Benefits of Netlify DNS:**
+- Automatic DNS configuration
+- Faster SSL provisioning
+- Easier subdomain management
+- Better CDN performance
+
+#### Troubleshooting Custom Domain
+
+**"Waiting on DNS propagation"**
+- Check your Porkbun DNS records are correct
+- Use [dnschecker.org](https://dnschecker.org) to verify propagation
+- Wait up to 48 hours (usually faster)
+
+**SSL certificate errors**
+- Ensure DNS is fully propagated first
+- Click "Renew certificate" in Netlify
+- Check that CAA records (if any) allow Let's Encrypt
+
+**"Domain already has an owner"**
+- Someone else registered this domain in Netlify
+- Contact Netlify support or use a different domain
 
 ---
 
